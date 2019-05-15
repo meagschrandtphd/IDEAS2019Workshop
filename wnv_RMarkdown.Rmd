@@ -1,0 +1,107 @@
+---
+title: "West Nile Virus Test Markdown"
+author: "MN Schrandt"
+date: "May 15, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# Load packages
+library(data.table) #to read data from an online source
+library(ggplot2)
+library(dplyr)
+# Import the Data
+wnv <- fread('https://raw.githubusercontent.com/jdrakephd/ideas-workshop/master/wnv.csv')
+```
+
+## Background Information
+
+This mini-report contains information on the overall case fatality rate of West Nile Virus as well as 
+the neuroinvasive disease rate.
+
+The following function was used to calculate mean and standard errors of the neuroinvasive disease rate (NIDrate), with default values set to Colorado and years 1999-2007. The function was then applied to all states:
+
+```{r}
+Calc.mean.se <- function(state="Colorado", years=1999:2007) {
+  # Computes the mean and standard error of the mean for a vector
+  # Colorado and the years in the function above are the default values
+  #
+  # Args: state: vector of state names
+  #       years: vector of years to be included
+  # 
+  # Returns: a dataframe with state name, mean rate and se
+  x <- wnv[wnv$State %in% state & wnv$Year %in% years,]
+  y <- data.frame(state=x$State, ndr=x$NIDrate) #this is where would calculate NIDrate if it wasn't done before
+  m=aggregate(y$ndr, by=list(y$state), FUN = mean)
+  se=aggregate(y$ndr, by=list(y$state), FUN = function(x) sd(x)/sqrt(length(x)) )
+  out=merge(m,se, by="Group.1")
+  names(out) <- c('state', 'mean.NIDrate', 'se.NIDrate')
+  return(out)
+}
+```
+
+## Visualizing the Data
+Let's first take a look at the overall number of West Nile Virus cases in the United States
+
+```{r, echo=FALSE} 
+# The echo=FALSE above prevents printing of the R code that generated this plot
+# Plot histogram of total number of cases in each state in each year; use the column 'Total' for this
+ggplot(data=wnv) + 
+  geom_histogram(mapping=aes(x=Total), binwidth = 20) +
+  labs(x='Cases', y='Frequency',
+       title='Total number of cases/year',
+       caption="Data from: https://diseasemaps.usgs.gov/")
+```
+
+Now let's check out the case fatality rate. First we will calculate the case fatality rate:
+```{r}
+wnv$CFR <- (wnv$Fatal / wnv$Total)
+```
+
+```{r, echo=FALSE}
+ggplot(data=wnv) +
+  geom_histogram(mapping=aes(x=CFR),binwidth=0.02) +
+  labs(x='Cases', y='Frequency', 
+       title='Case fatality rate of West Nile Virus')
+```
+
+Now we can look at the neuroinvasive disease rate. First, I calculaed the rate (NIDrate), and then applied the function from above to construct the following two plots.
+```{r}
+wnv$NIDrate <- wnv$EncephMen/wnv$Total
+```
+
+```{r echo=FALSE, warning=FALSE}
+disease <- Calc.mean.se(state=c("California", "Colorado", "New York"))
+## OK for some reason this disease line is giving me an error, but it's still making the correct plot...will check into this after the class
+ggplot(disease, aes(x=state, y=mean.NIDrate, fill=state)) +
+  geom_bar(stat="identity") +
+  geom_errorbar(aes(ymin=mean.NIDrate-se.NIDrate,ymax=mean.NIDrate+se.NIDrate)) +
+  labs(x='State', y='Neuroinvasive disease rate',
+       title='Neuroinvasive disease rate, 1999-2007 (mean +/- se)')
+
+# Now apply the function to all the states in the dataset
+# get vector of all the state names
+all.states=unique(wnv$State)
+disease.all <- Calc.mean.se(state=all.states)
+```
+```{r echo=FALSE, warning=FALSE, fig.width = 20, fig.height=10}
+# Now apply the function to all the states in the dataset
+# get vector of all the state names
+all.states=unique(wnv$State)
+disease.all <- Calc.mean.se(state=all.states)
+
+
+# Plot for all states
+ggplot(disease.all, aes(x=state, y=mean.NIDrate, fill=state)) +
+  geom_bar(stat="identity") +
+  geom_errorbar(aes(ymin=mean.NIDrate-se.NIDrate,ymax=mean.NIDrate+se.NIDrate)) +
+  theme(axis.text.y=element_text(size=14)) +
+  theme(axis.title.y=element_text(size=16)) +
+  theme(axis.text.x=element_text(angle = 90, hjust = 1, size = 14)) +  #this rotates x-axis label 90 degrees
+  theme(axis.title.x=element_text(size=16)) +
+  theme(plot.title=element_text(size=20, face="bold.italic")) +
+  labs(x='State', y='Neuroinvasive disease rate',
+       title='Neuroinvasive disease rate, 1999-2007 (mean +/- se)')
+```
+
