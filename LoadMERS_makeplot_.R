@@ -31,3 +31,5 @@ ggplot(data=mers) +
   geom_bar(mapping=aes(x=epi.day, fill=country)) +
   labs(x='Epidemic day', y='Case count', title='Global count of MERS cases by date of symptom onset',
        caption="Data from: https://github.com/rambaut/MERS-Cases/blob/gh-pages/data/cases.csv")
+
+## Now just adding a comment here to test the update and push functions...
